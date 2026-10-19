@@ -26,6 +26,7 @@ export interface CommandExecutionResult {
     error?: string;
     workspace?: string;
     memoryMb?: number;
+    isVercelNoPython?: boolean;
     runner?: string;
     [key: string]: any;
   };
@@ -401,6 +402,88 @@ def _route_telegram_url(url: str):
         return proxied_url, True
     return url, False
 
+# ----------------- 0. Pyrebase & Pyrebase4 Robust Shim -----------------
+try:
+    import pyrebase
+except ImportError:
+    try:
+        import pyrebase4 as pyrebase
+        _sys.modules['pyrebase'] = pyrebase
+    except ImportError:
+        import types as _types
+        _pyrebase = _types.ModuleType('pyrebase')
+        
+        class _DataSnapshot:
+            def __init__(self, data, key=None):
+                self._data = data
+                self._key = key
+            def val(self):
+                return self._data
+            def key(self):
+                return self._key
+
+        class _DatabaseQuery:
+            def __init__(self, base_url, path_segments=None):
+                self.base_url = (base_url or "").rstrip("/")
+                self.segments = list(path_segments) if path_segments else []
+            def child(self, segment):
+                return _DatabaseQuery(self.base_url, self.segments + [str(segment)])
+            @property
+            def _endpoint(self):
+                p = "/".join(self.segments)
+                return f"{self.base_url}/{p}.json" if p else f"{self.base_url}/.json"
+            def get(self):
+                try:
+                    import requests
+                    res = requests.get(self._endpoint)
+                    if not res.ok or not res.text or res.text == "null":
+                        return _DataSnapshot(None)
+                    return _DataSnapshot(res.json())
+                except Exception:
+                    return _DataSnapshot(None)
+            def set(self, data):
+                try:
+                    import requests
+                    res = requests.put(self._endpoint, json=data)
+                    return res.json() if res.ok else {"error": res.text}
+                except Exception as e:
+                    return {"error": str(e)}
+            def push(self, data):
+                try:
+                    import requests
+                    res = requests.post(self._endpoint, json=data)
+                    return res.json() if res.ok else {"error": res.text}
+                except Exception as e:
+                    return {"error": str(e)}
+            def update(self, data):
+                try:
+                    import requests
+                    res = requests.patch(self._endpoint, json=data)
+                    return res.json() if res.ok else {"error": res.text}
+                except Exception as e:
+                    return {"error": str(e)}
+            def remove(self):
+                try:
+                    import requests
+                    requests.delete(self._endpoint)
+                    return True
+                except Exception:
+                    return False
+
+        class _FirebaseApp:
+            def __init__(self, config):
+                self.config = config or {}
+                self.db_url = self.config.get("databaseURL", "")
+                self.bucket = self.config.get("storageBucket", "")
+            def database(self):
+                return _DatabaseQuery(self.db_url)
+            def storage(self):
+                return None
+
+        _pyrebase.initialize_app = lambda cfg: _FirebaseApp(cfg)
+        _sys.modules['pyrebase'] = _pyrebase
+        _sys.modules['pyrebase4'] = _pyrebase
+
 # ----------------- 1. Patch requests (Session, get, post, request) -----------------
 try:
     import requests as _req
@@ -642,32 +725,11 @@ except Exception:
   if (scriptContent.startsWith('python3 ') || scriptContent.startsWith('python ')) {
     const withoutPrefix = scriptContent.replace(/^python[3]?\s+/, '').trim();
     if (withoutPrefix.startsWith('-c ')) {
+      // Inline python
       scriptContent = withoutPrefix.slice(3).replace(/^['"]|['"]$/g, '');
     } else {
-      const targetScript = withoutPrefix.replace(/^\.\//, '');
-      const possiblePaths = [
-        path.join(process.cwd(), targetScript),
-        path.join(process.cwd(), 'storage', 'extracted', targetScript),
-        path.join(process.cwd(), 'storage', 'extracted', 'Sandbox_albutana_bot', targetScript),
-        path.join(process.cwd(), 'storage', 'extracted', 'domain_to_ip_bot', targetScript),
-      ];
-      let loaded = false;
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-          try {
-            scriptContent = fs.readFileSync(p, 'utf-8');
-            loaded = true;
-            break;
-          } catch {}
-        }
-      }
-      if (!loaded) {
-        if (targetScript === 'albutana.py') {
-          scriptContent = `import asyncio\nfrom telegram import Update\nfrom telegram.ext import Application, CommandHandler, ContextTypes\n\nTOKEN = "8301998893:AAEj7q00HvvwkRI4t1VKHmHBnfMRXInso4M"\n\nsubscribers = set()\n\nasync def start(update: Update, context: ContextTypes.DEFAULT_TYPE):\n    chat_id = update.effective_chat.id\n    subscribers.add(chat_id)\n    await update.message.reply_text("✅ تم التفعيل، ستصلك رسالة كل 20 ثانية")\n\nasync def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):\n    chat_id = update.effective_chat.id\n    subscribers.discard(chat_id)\n    await update.message.reply_text("🛑 تم الإيقاف")\n\nasync def auto_send(context: ContextTypes.DEFAULT_TYPE):\n    for chat_id in list(subscribers):\n        try:\n            await context.bot.send_message(chat_id, "⏰ رسالة تلقائية كل 20 ثانية")\n        except:\n            subscribers.discard(chat_id)\n\nasync def main():\n    app = Application.builder().token(TOKEN).build()\n    app.add_handler(CommandHandler("start", start))\n    app.add_handler(CommandHandler("stop", stop))\n    print("✅ البوت يعمل عبر شبكة SudaStack (sudastack.iqra4you.com)...")\n    try:\n        await app.bot.delete_webhook(drop_pending_updates=True)\n    except Exception:\n        pass\n    try:\n        await app.initialize()\n        await app.start()\n        await app.updater.start_polling(drop_pending_updates=True)\n    except Exception as e:\n        print(f"⚠️ خطأ في الاستماع: {e}")\n\nif __name__ == "__main__":\n    asyncio.run(main())`;
-        } else if (targetScript === 'domain_to_ip.py') {
-          scriptContent = `import json\nimport os\nfrom telegram import Update\nfrom telegram.ext import Application, CommandHandler, ContextTypes\n\nTOKEN = "8301998893:AAHbH0hEUvCVeP8vXzIwWTzh_kji5BB7BsU"\n\ndef main():\n    print("🚀 جاري بناء وتشغيل البوت...")\n    print("✅ البوت متصل الآن بخوادم تيليجرام ويستمع للرسائل بنجاح...")\n\nif __name__ == "__main__":\n    main()`;
-        }
-      }
+      // Just script code or filename
+      scriptContent = withoutPrefix;
     }
   }
 

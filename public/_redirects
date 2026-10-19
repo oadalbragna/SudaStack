@@ -1,0 +1,7 @@
+/api/terminal/*     /api/tools/execute 307
+/api/terminal       /api/tools/execute 307
+/terminal/*         /api/tools/execute 307
+/terminal           /api/tools/execute 307
+/api/tools/terminal /api/tools/execute 307
+/api/storage/*      /api/sudafile/:splat 307
+/storage/*          /api/sudafile/:splat 307

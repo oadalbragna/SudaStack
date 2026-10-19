@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "sudastack": {
+      "name": "SudaStack MCP Server",
+      "version": "2.5.0",
+      "transport": "sse",
+      "url": "https://suda-stack.vercel.app/api/mcp/sse",
+      "rpcUrl": "https://suda-stack.vercel.app/api/mcp/rpc",
+      "openApiUrl": "https://suda-stack.vercel.app/api/openapi.json",
+      "description": "Universal MCP Server & Cloud Workspace for interactive web platforms and zero-token synthesis.",
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": true
+      }
+    }
+  }
+}

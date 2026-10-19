@@ -1,0 +1,11 @@
+/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, x-api-key, x-gemini-key, Accept
+  X-Content-Type-Options: nosniff
+
+/api/*
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS
+  Access-Control-Allow-Headers: Content-Type, Authorization, x-api-key, x-gemini-key, Accept
+  Cache-Control: no-cache, no-store, must-revalidate

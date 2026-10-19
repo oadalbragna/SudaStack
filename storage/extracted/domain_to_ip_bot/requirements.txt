@@ -1,0 +1,2 @@
+# Standard socket library is built-in
+requests>=2.28.0

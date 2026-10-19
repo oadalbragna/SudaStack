@@ -1,0 +1,11 @@
+{
+  "name": "SudaStack AI",
+  "id": "sudastack-mcp-plugin",
+  "version": "1.0.0",
+  "description": "SudaStack Cloud Workspace and MCP Server for OpenAI ChatGPT and Codex.",
+  "entrypoint": "https://suda-stack.vercel.app/api/openapi.json",
+  "mcpEndpoint": "https://suda-stack.vercel.app/api/mcp/rpc",
+  "sseEndpoint": "https://suda-stack.vercel.app/api/mcp/sse",
+  "permissions": ["network", "storage"],
+  "privacyPolicy": "https://suda-stack.vercel.app/privacy"
+}

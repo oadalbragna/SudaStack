@@ -1,0 +1,8 @@
+{
+  "name": "SudaStack V2",
+  "description": "Imported from GitHub: oadalbragna/SudaStack",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

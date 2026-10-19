@@ -1,0 +1,213 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "SudaStack AI Workspace API",
+    "description": "API for SudaStack AI Workspace: architect interactive web platforms, single-file HTML5 apps, tools, and manage cloud files.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://suda-stack.vercel.app"
+    }
+  ],
+  "paths": {
+    "/api/telegram-storage/chat-and-create": {
+      "post": {
+        "summary": "Architect and Create Web Platform",
+        "description": "Generates a full interactive web application, dashboard, or tool and saves it directly to the SudaStack cloud workspace.",
+        "operationId": "chatAndCreatePlatform",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatAndCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Platform created successfully with saved files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatAndCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/rpc": {
+      "post": {
+        "summary": "Execute SudaStack MCP Tool",
+        "description": "Executes MCP workspace tools such as sudastack_architect_platform or sudastack_list_files via JSON-RPC 2.0.",
+        "operationId": "executeMCPRpc",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonRpcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC 2.0 execution result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JsonRpcResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mcp/stats": {
+      "get": {
+        "summary": "Get Workspace Health and Stats",
+        "description": "Returns health status and token savings statistics.",
+        "operationId": "getWorkspaceStats",
+        "responses": {
+          "200": {
+            "description": "Status and statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatAndCreateRequest": {
+        "type": "object",
+        "required": [
+          "prompt"
+        ],
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "description": "Description of the web application, dashboard, or script to build."
+          },
+          "useZeroTokenMode": {
+            "type": "boolean",
+            "description": "Enable instant synthesis mode without LLM token cost."
+          }
+        }
+      },
+      "ChatAndCreateResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "description": "Explanation of the generated platform."
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string"
+                },
+                "content": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "JsonRpcRequest": {
+        "type": "object",
+        "required": [
+          "jsonrpc",
+          "method"
+        ],
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "string",
+            "example": "call-1"
+          },
+          "method": {
+            "type": "string",
+            "example": "tools/call"
+          },
+          "params": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "example": "sudastack_architect_platform"
+              },
+              "arguments": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "JsonRpcResponse": {
+        "type": "object",
+        "properties": {
+          "jsonrpc": {
+            "type": "string",
+            "example": "2.0"
+          },
+          "id": {
+            "type": "string"
+          },
+          "result": {
+            "type": "object"
+          }
+        }
+      },
+      "StatsResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "healthy"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "protocolVersion": {
+            "type": "string"
+          },
+          "totalZeroTokenHits": {
+            "type": "number"
+          },
+          "tokensSaved": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

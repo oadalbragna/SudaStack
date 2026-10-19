@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "SudaStack AI",
+  "name_for_model": "sudastack_ai",
+  "description_for_human": "SudaStack AI Workspace: Architect, generate, manage, and deploy interactive web applications and tools directly from ChatGPT.",
+  "description_for_model": "Plugin for SudaStack AI Workspace. Allows ChatGPT to architect web applications, run MCP tools, read/write files, manage workspace sessions, and deploy live code.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://suda-stack.vercel.app/api/openapi.json"
+  },
+  "logo_url": "https://suda-stack.vercel.app/assets/logo.png",
+  "contact_email": "support@sudastack.com",
+  "legal_info_url": "https://suda-stack.vercel.app/privacy"
+}

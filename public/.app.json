@@ -1,0 +1,13 @@
+{
+  "name": "SudaStack AI",
+  "version": "1.0.0",
+  "description": "SudaStack AI Workspace: Architect and build interactive web applications and manage cloud storage.",
+  "developer": "SudaStack",
+  "url": "https://suda-stack.vercel.app",
+  "privacy": "https://suda-stack.vercel.app/privacy",
+  "mcp": {
+    "server": "https://suda-stack.vercel.app/api/mcp/sse",
+    "rpc": "https://suda-stack.vercel.app/api/mcp/rpc"
+  },
+  "openapi": "https://suda-stack.vercel.app/api/openapi.json"
+}

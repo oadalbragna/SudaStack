@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f1f5f9;
+    --bg-elevated: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --border-subtle: rgba(15, 23, 42, 0.09);
+    --border-strong: rgba(15, 23, 42, 0.16);
+    --accent-cyan: #0891b2;
+  }
+
+  html.dark {
+    --bg-primary: #0e0f12;
+    --bg-secondary: #14151c;
+    --bg-tertiary: #181920;
+    --bg-elevated: #1c1e26;
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --accent-cyan: #06b6d4;
+  }
+
+  html, body, #root {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeSpeed;
+  }
+
+  /* Dark theme base */
+  html.dark, body.dark {
+    background-color: #0e0f12;
+    color: #f1f5f9;
+    color-scheme: dark;
+  }
+
+  /* Light theme base */
+  html.light, body.light {
+    background-color: #f8fafc;
+    color: #0f172a;
+    color-scheme: light;
+  }
+
+  /* Custom scrollbar for dark mode */
+  html.dark ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  html.dark ::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.4);
+  }
+  html.dark ::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, 0.4);
+    border-radius: 9999px;
+  }
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.65);
+  }
+
+  /* Custom scrollbar for light mode */
+  html.light ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  html.light ::-webkit-scrollbar-track {
+    background: rgba(241, 245, 249, 0.9);
+  }
+  html.light ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 9999px;
+  }
+  html.light ::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8);
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Performance & Layout Containment Utilities */
+.suda-card-perf {
+  contain: layout style;
+}
+
+.suda-msg-perf {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 120px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,10 +1,11 @@
 /**
  * SudaStack Project Runtime Manager
- * Central process & idempotency manager for server-side tool execution
+ * Central process, idempotency, and runtime polling manager for server-side tool execution
  */
 
 const activeProcesses = new Map<string, any>();
 const idempotencyStore = new Map<string, any>();
+const activePollers = new Map<string, any>();
 
 export function registerProcess(processMeta: any): void {
   if (processMeta && processMeta.id) {
@@ -48,4 +49,34 @@ export function saveIdempotency(key: string, result: any): void {
 
 export function getAllActiveProcesses(): any[] {
   return Array.from(activeProcesses.values());
+}
+
+export function getOrCreateRuntime(projectId: string): any {
+  return {
+    projectId,
+    status: 'active',
+    uptime: '0m',
+  };
+}
+
+export function startServerTelegramPolling(token: string): void {
+  const cleanToken = (token || '').trim();
+  if (!cleanToken || activePollers.has(cleanToken)) return;
+  const intervalId = setInterval(() => {
+    // Background server polling stub
+  }, 3000);
+  activePollers.set(cleanToken, intervalId);
+}
+
+export function stopServerTelegramPolling(token?: string): void {
+  if (token) {
+    const cleanToken = token.trim();
+    if (activePollers.has(cleanToken)) {
+      clearInterval(activePollers.get(cleanToken));
+      activePollers.delete(cleanToken);
+    }
+  } else {
+    activePollers.forEach((id) => clearInterval(id));
+    activePollers.clear();
+  }
 }

@@ -11,6 +11,11 @@ import {
   Sparkles,
   RotateCcw,
   FileText,
+  Layers,
+  KeyRound,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { SudaResponseMode } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -27,12 +32,16 @@ interface StudioSettingsModalProps {
   isArabic?: boolean;
   responseMode?: SudaResponseMode;
   systemPrompt?: string;
+  initialModel?: string;
+  initialTemplate?: string;
 }
 
 export interface StudioSettings {
   model: string;
+  template: string;
   responseMode: SudaResponseMode;
   systemPrompt: string;
+  cookie?: string;
 }
 
 export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
@@ -42,21 +51,52 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
   isArabic = true,
   responseMode = 'coding' as SudaResponseMode,
   systemPrompt = '',
+  initialModel = 'dolphinserver:24B',
+  initialTemplate = 'code-beginner',
 }) => {
   const { isDark } = useTheme();
   const [selectedMode, setSelectedMode] = useState<SudaResponseMode>(responseMode);
+  const [selectedModel, setSelectedModel] = useState<string>(initialModel);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(initialTemplate);
   const [editablePrompt, setEditablePrompt] = useState<string>(
     sanitizeModelBranding(systemPrompt || getSystemInstructionForMode(responseMode))
   );
 
+  // Cookie & Token State
+  const [cookieInput, setCookieInput] = useState<string>('');
+  const [isRefreshingCookie, setIsRefreshingCookie] = useState<boolean>(false);
+  const [isSavingCookie, setIsSavingCookie] = useState<boolean>(false);
+  const [cookieStatus, setCookieStatus] = useState<{
+    isValid: boolean;
+    maskedCookie: string;
+    lastStatusText: string;
+    autoRefreshCount: number;
+    lastValidatedAt: number;
+  } | null>(null);
+
+  const fetchAuthStatus = async () => {
+    try {
+      const res = await fetch('/api/dolphin/auth/status');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.telemetry) {
+          setCookieStatus(data.telemetry);
+        }
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     if (isOpen) {
       setSelectedMode(responseMode);
+      setSelectedModel(initialModel);
+      setSelectedTemplate(initialTemplate);
       setEditablePrompt(
         sanitizeModelBranding(systemPrompt || getSystemInstructionForMode(responseMode))
       );
+      fetchAuthStatus();
     }
-  }, [isOpen, responseMode, systemPrompt]);
+  }, [isOpen, responseMode, systemPrompt, initialModel, initialTemplate]);
 
   if (!isOpen) return null;
 
@@ -69,17 +109,69 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
     setEditablePrompt(DEFAULT_SYSTEM_PROMPTS[selectedMode] || DEFAULT_SYSTEM_PROMPTS.coding);
   };
 
+  const handleRefreshCookieNow = async () => {
+    setIsRefreshingCookie(true);
+    try {
+      const res = await fetch('/api/dolphin/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.telemetry) setCookieStatus(data.telemetry);
+      }
+    } catch {
+    } finally {
+      setIsRefreshingCookie(false);
+    }
+  };
+
+  const handleSaveCustomCookie = async () => {
+    if (!cookieInput.trim()) return;
+    setIsSavingCookie(true);
+    try {
+      const res = await fetch('/api/dolphin/cookie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookie: cookieInput.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.telemetry) setCookieStatus(data.telemetry);
+        setCookieInput('');
+      }
+    } catch {
+    } finally {
+      setIsSavingCookie(false);
+    }
+  };
+
   const handleSave = () => {
     const finalPrompt = sanitizeModelBranding(
       editablePrompt.trim() || getSystemInstructionForMode(selectedMode)
     );
     onApplySettings({
-      model: 'SudaMode V1.0',
+      model: selectedModel,
+      template: selectedTemplate,
       responseMode: selectedMode,
       systemPrompt: finalPrompt,
     });
     onClose();
   };
+
+  const modelOptions = [
+    { id: 'dolphinserver:24B', label: isArabic ? 'SudaMode V1.0 (النموذج الأساسي)' : 'SudaMode V1.0 (Primary Engine)' },
+    { id: 'dolphinserver2:6b', label: isArabic ? 'SudaMode Mini (سريع وخفيف)' : 'SudaMode Mini (Fast)' },
+  ];
+
+  const templateOptions = [
+    { id: 'code-beginner', label: isArabic ? 'Code Beginner (برمجة للمبتدئين)' : 'Code Beginner' },
+    { id: 'code-advanced', label: isArabic ? 'Code Advanced (برمجة متقدمة)' : 'Code Advanced' },
+    { id: 'logical', label: isArabic ? 'Logical (تحليل منطقي)' : 'Logical' },
+    { id: 'creative', label: isArabic ? 'Creative (إبداعي)' : 'Creative' },
+    { id: 'summary', label: isArabic ? 'Summarizer (تلخيص وتحليل)' : 'Summarizer' },
+  ];
 
   const personaOptions: Array<{
     id: SudaResponseMode;
@@ -119,9 +211,6 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
     },
   ];
 
-  const activePersonaLabel =
-    personaOptions.find((p) => p.id === selectedMode)?.title || personaOptions[0].title;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
       <div className="fixed inset-0 bg-black/75 backdrop-blur-xs" onClick={onClose} />
@@ -140,8 +229,8 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
             <SlidersHorizontal className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
             <h3 className={`font-bold text-sm sm:text-base ${isDark ? 'text-white' : 'text-slate-900'}`}>
               {isArabic
-                ? 'الضبط — صياغة الردود والـ Prompt System'
-                : 'Settings — Response Style & System Prompt'}
+                ? 'إعدادات النماذج، القوالب، والتجديد التلقائي'
+                : 'Settings — Models, Templates & Token Refresh'}
             </h3>
           </div>
           <button
@@ -155,54 +244,133 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
           </button>
         </div>
 
-        {/* 1. Selected Model + Active Response Mode side-by-side */}
-        <div
-          className={`p-3.5 rounded-xl border space-y-2 ${
-            isDark
-              ? 'bg-[#111217] border-cyan-500/35'
-              : 'bg-cyan-50/70 border-cyan-200 text-slate-900'
-          }`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Cpu className={`w-4 h-4 ${isDark ? 'text-cyan-400' : 'text-cyan-600'} shrink-0`} />
-              <span className={`text-xs font-medium ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                {isArabic ? 'المودل المختار:' : 'Selected Model:'}
-              </span>
-              <code
-                dir="ltr"
-                className={`px-2 py-0.5 rounded-md border font-mono text-xs font-bold ${
-                  isDark
-                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
-                    : 'bg-cyan-100 border-cyan-300 text-cyan-800'
-                }`}
-              >
-                SudaMode V1.0
-              </code>
-            </div>
-
-            {/* Active Response Style Badge right beside the selected model */}
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${
+        {/* 1. Model & Template Selectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className={`text-xs font-semibold flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{isArabic ? 'اختر النموذج (Model):' : 'Select Model:'}</span>
+            </label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className={`w-full border rounded-xl px-3 py-2 text-xs font-medium focus:outline-none transition ${
                 isDark
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-white border-slate-200 text-slate-800 shadow-2xs'
+                  ? 'bg-[#111217] border-cyan-500/30 text-white focus:border-cyan-400'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-cyan-500'
               }`}
             >
-              <span className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {isArabic ? 'الصياغة:' : 'Style:'}
-              </span>
-              <span className={isDark ? 'text-cyan-300' : 'text-cyan-700'}>{activePersonaLabel}</span>
-            </div>
+              {modelOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
-          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-            {isArabic
-              ? 'يتم إرسال جميع الطلبات مباشرة وبشكل حقيقي مع تمرير الـ System Prompt المحدد أدناه.'
-              : 'All requests are processed live using the System Prompt configured below.'}
-          </p>
+
+          <div className="space-y-1.5">
+            <label className={`text-xs font-semibold flex items-center gap-1.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+              <Layers className="w-3.5 h-3.5 text-emerald-400" />
+              <span>{isArabic ? 'اختر القالب (Template):' : 'Select Template:'}</span>
+            </label>
+            <select
+              value={selectedTemplate}
+              onChange={(e) => setSelectedTemplate(e.target.value)}
+              className={`w-full border rounded-xl px-3 py-2 text-xs font-medium focus:outline-none transition ${
+                isDark
+                  ? 'bg-[#111217] border-emerald-500/30 text-white focus:border-emerald-400'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-emerald-500'
+              }`}
+            >
+              {templateOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* 2. Response Persona Mode Selector */}
+        {/* 2. Automated cf_clearance Cookie & Session Token Panel */}
+        <div
+          className={`p-3.5 rounded-xl border space-y-2.5 ${
+            isDark
+              ? 'bg-[#111217] border-cyan-500/25'
+              : 'bg-cyan-50/60 border-cyan-200 text-slate-900'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-cyan-400 shrink-0" />
+              <span className="text-xs font-bold">
+                {isArabic ? 'إدارة جلسة الكوكي والتحقق التلقائي (cf_clearance):' : 'Cookie & Token Management:'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {cookieStatus?.isValid ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <CheckCircle2 className="w-3 h-3" />
+                  {isArabic ? 'جلسة نشطة' : 'Active'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  <AlertCircle className="w-3 h-3" />
+                  {cookieStatus?.lastStatusText || (isArabic ? 'تجديد تلقائي مدعوم' : 'Auto-Renew Ready')}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <p className={`text-[11px] leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            {isArabic
+              ? 'يقوم النظام تلقائياً بتجديد رمز الجلسة عند انتهاء الصلاحية أو تلقي خطأ 403 وحفظه في مساحة التخزين الآمنة للطلبات اللاحقة.'
+              : 'Tokens are automatically refreshed on expiry or 403 errors and saved securely for subsequent requests.'}
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={cookieInput}
+              onChange={(e) => setCookieInput(e.target.value)}
+              placeholder={
+                isArabic
+                  ? 'الصق cf_clearance جديداً هنا (اختياري)...'
+                  : 'Paste new cf_clearance cookie (optional)...'
+              }
+              className={`flex-1 border rounded-xl px-3 py-1.5 text-xs font-mono focus:outline-none transition ${
+                isDark
+                  ? 'bg-[#0e0f14] border-white/10 text-slate-200 focus:border-cyan-400 placeholder:text-slate-600'
+                  : 'bg-white border-slate-300 text-slate-900 focus:border-cyan-500 placeholder:text-slate-400'
+              }`}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSaveCustomCookie}
+                disabled={!cookieInput.trim() || isSavingCookie}
+                className="px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-semibold transition"
+              >
+                {isSavingCookie ? (isArabic ? 'جاري الحفظ...' : 'Saving...') : (isArabic ? 'حفظ الكوكي' : 'Save')}
+              </button>
+              <button
+                type="button"
+                onClick={handleRefreshCookieNow}
+                disabled={isRefreshingCookie}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                  isDark
+                    ? 'bg-white/5 hover:bg-white/10 text-cyan-300 border-cyan-500/30'
+                    : 'bg-white hover:bg-slate-50 text-cyan-700 border-cyan-300'
+                }`}
+                title={isArabic ? 'فحص وتجديد التوكن برمجياً الآن' : 'Test and refresh tokens programmatically now'}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingCookie ? 'animate-spin' : ''}`} />
+                <span>{isRefreshingCookie ? (isArabic ? 'تجديد...' : 'Refreshing...') : (isArabic ? 'فحص وتجديد' : 'Refresh')}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Response Persona Mode Selector */}
         <div>
           <label className={`text-xs font-semibold block mb-2 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
             {isArabic ? 'اختر نمط صياغة الردود:' : 'Select Response Style:'}
@@ -233,7 +401,7 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
           </div>
         </div>
 
-        {/* 3. System Prompt Viewer & Editor (Prompt System) */}
+        {/* 4. System Prompt Viewer & Editor */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className={`text-xs font-bold flex items-center gap-1.5 ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
@@ -252,7 +420,6 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
                   ? 'bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border-white/10'
                   : 'bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border-slate-200'
               }`}
-              title={isArabic ? 'استعادة البرومبت الافتراضي للنمط المختار' : 'Reset to default prompt'}
             >
               <RotateCcw className="w-3 h-3" />
               <span>{isArabic ? 'استعادة الافتراضي' : 'Reset Default'}</span>
@@ -262,11 +429,11 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
           <textarea
             value={editablePrompt}
             onChange={(e) => setEditablePrompt(e.target.value)}
-            rows={5}
+            rows={4}
             dir="auto"
             placeholder={
               isArabic
-                ? 'اكتب أو عدّل تعليمات النظام (System Prompt) هنا لتوجيه صياغة ردود المودل...'
+                ? 'اكتب أو عدّل تعليمات النظام (System Prompt) هنا...'
                 : 'Write or edit the System Prompt instructions here...'
             }
             className={`w-full border rounded-xl p-3 text-xs sm:text-sm focus:outline-none leading-relaxed resize-y font-sans transition-colors ${
@@ -278,8 +445,8 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
           <div className={`flex items-center justify-between text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
             <span>
               {isArabic
-                ? 'يمكنك تعديل نص البرومبت بحرية ليتم تطبيقه كـ System Prompt على جميع الردود.'
-                : 'Modify this System Prompt freely to customize how the model responds.'}
+                ? 'يتم تطبيق هذا البرومبت على كافة المحادثات.'
+                : 'Applied as System Prompt across all chats.'}
             </span>
             <span className={`font-mono tabular-nums font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
               {editablePrompt.length} {isArabic ? 'حرف' : 'chars'}
@@ -306,7 +473,7 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
             className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold transition flex items-center gap-1.5 shadow-md active:scale-95"
           >
             <Check className="w-3.5 h-3.5" />
-            <span>{isArabic ? 'حفظ وتطبيق البرومبت' : 'Save & Apply Prompt'}</span>
+            <span>{isArabic ? 'حفظ وتطبيق الإعدادات' : 'Save & Apply'}</span>
           </button>
         </div>
       </div>

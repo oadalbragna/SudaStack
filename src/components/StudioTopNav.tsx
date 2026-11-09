@@ -14,6 +14,9 @@ import {
   Moon,
   Film,
   Terminal,
+  Cpu,
+  Layers,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { ChatSession } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -33,6 +36,11 @@ interface StudioTopNavProps {
   onDeleteSession?: (id: string) => void;
   onToggleDesktopSidebar?: () => void;
   isDesktopSidebarOpen?: boolean;
+  selectedModel?: string;
+  onSelectModel?: (model: string) => void;
+  selectedTemplate?: string;
+  onSelectTemplate?: (template: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export const StudioTopNav: React.FC<StudioTopNavProps> = React.memo(({
@@ -50,6 +58,11 @@ export const StudioTopNav: React.FC<StudioTopNavProps> = React.memo(({
   onDeleteSession,
   onToggleDesktopSidebar,
   isDesktopSidebarOpen,
+  selectedModel = 'dolphinserver:24B',
+  onSelectModel,
+  selectedTemplate = 'code-beginner',
+  onSelectTemplate,
+  onOpenSettings,
 }) => {
   const { isDark, toggleTheme } = useTheme();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -263,8 +276,78 @@ export const StudioTopNav: React.FC<StudioTopNavProps> = React.memo(({
           )}
         </div>
 
-        {/* Right: Theme Toggle + Admin Dashboard Button + New Chat Button */}
+        {/* Right: Model & Template quick selectors + Theme Toggle + Admin Dashboard Button + New Chat Button */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Quick Model Selector */}
+          {onSelectModel && (
+            <div className={`hidden md:flex items-center gap-1 border rounded-xl px-2 py-1 text-xs font-semibold ${
+              isDark ? 'bg-[#16171d] border-cyan-500/30 text-cyan-200' : 'bg-cyan-50/70 border-cyan-300 text-cyan-900'
+            }`}>
+              <Cpu className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <select
+                value={selectedModel}
+                onChange={(e) => onSelectModel(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+                title={isArabic ? 'اختيار النموذج الذكي' : 'Select AI Model'}
+              >
+                <option value="dolphinserver:24B" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  SudaMode V1.0
+                </option>
+                <option value="dolphinserver2:6b" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  SudaMode Mini
+                </option>
+              </select>
+            </div>
+          )}
+
+          {/* Quick Template Selector */}
+          {onSelectTemplate && (
+            <div className={`hidden lg:flex items-center gap-1 border rounded-xl px-2 py-1 text-xs font-semibold ${
+              isDark ? 'bg-[#16171d] border-emerald-500/30 text-emerald-200' : 'bg-emerald-50/70 border-emerald-300 text-emerald-900'
+            }`}>
+              <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <select
+                value={selectedTemplate}
+                onChange={(e) => onSelectTemplate(e.target.value)}
+                className="bg-transparent border-none text-xs font-semibold focus:outline-none cursor-pointer pr-1"
+                title={isArabic ? 'اختيار قالب الاستجابة' : 'Select Response Template'}
+              >
+                <option value="code-beginner" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  Code Beginner
+                </option>
+                <option value="code-advanced" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  Code Advanced
+                </option>
+                <option value="logical" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  Logical
+                </option>
+                <option value="creative" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  Creative
+                </option>
+                <option value="summary" className={isDark ? 'bg-[#16171d] text-white' : 'bg-white text-slate-900'}>
+                  Summarize
+                </option>
+              </select>
+            </div>
+          )}
+
+          {/* Settings & Token Refresh Button */}
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl border transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold shadow-xs ${
+                isDark
+                  ? 'bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/30'
+                  : 'bg-cyan-50 hover:bg-cyan-100 text-cyan-800 border-cyan-300'
+              }`}
+              title={isArabic ? 'الضبط، النماذج، وتجديد الكوكي' : 'Settings, Models & Token Refresh'}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden md:inline">{isArabic ? 'الضبط' : 'Settings'}</span>
+            </button>
+          )}
+
           {/* Theme Toggle Button (الوضع النهاري / الليلي) */}
           <button
             type="button"

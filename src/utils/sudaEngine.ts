@@ -57,11 +57,14 @@ export function sanitizeModelBranding(text: string): string {
     .replace(/ميسترال(?:\s*(?:إيه\s*آي|اي\s*اي|للذكاء\s*الاصطناعي|AI))?/gi, 'MAS .Ltd')
     .replace(/cognitive[\s-_]*computations/gi, 'MAS .Ltd')
     .replace(/eric[\s-_]*hartford/gi, 'MAS .Ltd')
-    // Replace dolphin variations with SudaMode V1.0
+    // Disguise and replace all dolphin variations strictly as SudaMode V1.0 / SudaMode Mini
     .replace(/dolphin[-_\s]*server:?24b/gi, 'SudaMode V1.0')
     .replace(/dolphin[-_\s]*24b/gi, 'SudaMode V1.0')
+    .replace(/dolphin[-_\s]*mini/gi, 'SudaMode Mini')
+    .replace(/dolphin[-_\s]*server2:?6b/gi, 'SudaMode Mini')
     .replace(/dolphin/gi, 'SudaMode V1.0')
-    .replace(/دولفين/gi, 'SudaMode V1.0');
+    .replace(/دولفين/gi, 'SudaMode V1.0')
+    .replace(/dphn/gi, 'SudaStack');
 }
 
 /**

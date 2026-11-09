@@ -16,7 +16,7 @@ class IdempotencyLayerService {
 
   public generateId(sessionId: string, command: string): string {
     const bucket = Math.floor(Date.now() / this.WINDOW_MS);
-    const raw = `${sessionId}:${command.trim():bucket}`;
+    const raw = `${sessionId}:${command.trim()}:${bucket}`;
     let hash = 0;
     for (let i = 0; i < raw.length; i++) {
       const char = raw.charCodeAt(i);

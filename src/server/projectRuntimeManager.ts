@@ -7,16 +7,28 @@ const activeProcesses = new Map<string, any>();
 const idempotencyStore = new Map<string, any>();
 const activePollers = new Map<string, any>();
 
-export function registerProcess(processMeta: any): void {
-  if (processMeta && processMeta.id) {
-    activeProcesses.set(processMeta.id, processMeta);
-  }
+export function registerProcess(
+  runId: string,
+  projectName: string,
+  type: string,
+  command: string,
+  sessionId?: string
+): void {
+  activeProcesses.set(runId, {
+    runId,
+    projectName,
+    type,
+    command,
+    sessionId,
+    status: 'running',
+    startedAt: Date.now(),
+  });
 }
 
-export function completeProcess(processId: string, result?: any): void {
+export function completeProcess(processId: string, exitCode?: number): void {
   if (activeProcesses.has(processId)) {
     const proc = activeProcesses.get(processId);
-    activeProcesses.set(processId, { ...proc, status: 'completed', result });
+    activeProcesses.set(processId, { ...proc, status: 'completed', exitCode });
     setTimeout(() => activeProcesses.delete(processId), 60000); // retain for 1 min
   }
 }
@@ -59,21 +71,20 @@ export function getOrCreateRuntime(projectId: string): any {
   };
 }
 
-export function startServerTelegramPolling(token: string): void {
+export function startServerTelegramPolling(projectId: string, token: string): void {
   const cleanToken = (token || '').trim();
-  if (!cleanToken || activePollers.has(cleanToken)) return;
+  if (!cleanToken || activePollers.has(projectId)) return;
   const intervalId = setInterval(() => {
     // Background server polling stub
   }, 3000);
-  activePollers.set(cleanToken, intervalId);
+  activePollers.set(projectId, intervalId);
 }
 
-export function stopServerTelegramPolling(token?: string): void {
-  if (token) {
-    const cleanToken = token.trim();
-    if (activePollers.has(cleanToken)) {
-      clearInterval(activePollers.get(cleanToken));
-      activePollers.delete(cleanToken);
+export function stopServerTelegramPolling(projectId: string): void {
+  if (projectId) {
+    if (activePollers.has(projectId)) {
+      clearInterval(activePollers.get(projectId));
+      activePollers.delete(projectId);
     }
   } else {
     activePollers.forEach((id) => clearInterval(id));

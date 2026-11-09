@@ -32,7 +32,7 @@ export interface SandboxProject {
   id: string;
   name: string;
   entry_file: string;
-  status: 'running' | 'stopped' | 'cancelling' | 'error';
+  status: 'running' | 'stopped' | 'cancelling' | 'error' | 'restarting';
   runtimeId: string;
   activeRunId: string | null;
   lastHeartbeat: number;

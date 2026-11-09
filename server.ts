@@ -42,6 +42,13 @@ import {
   startServerTelegramPolling,
   stopServerTelegramPolling,
 } from './src/server/projectRuntimeManager';
+import {
+  getValidDolphinCookie,
+  refreshDolphinCookie,
+  saveDolphinCookie,
+  getDolphinHeaders,
+  getDolphinAuthTelemetry,
+} from './src/server/dolphinAuthManager';
 
 
 const ROOT_DIR = process.cwd();
@@ -76,9 +83,130 @@ app.all('/api/proxy', async (req, res) => {
   }
   return proxyChatHandler(req, res);
 });
-app.all(['/api/proxy-chat', '/api/dolphin/chat', '/api/chat', '/proxy-chat'], (req, res) => proxyChatHandler(req, res));
+app.all(['/api/proxy-chat', '/api/suda/chat', '/api/dolphin/chat', '/api/chat', '/proxy-chat'], (req, res) => proxyChatHandler(req, res));
 app.all('/api/telegram-storage/chat-and-create', (req, res) => chatAndCreateHandler(req, res));
 app.all('/api/gemini/generate', (req, res) => geminiGenerateHandler(req, res));
+
+app.get(['/api/models', '/api/suda/models', '/api/dolphin/models'], async (req, res) => {
+  try {
+    let cookie = await getValidDolphinCookie(req.headers['cookie'] as string);
+    let r = await fetch('https://chat.dphn.ai/api/models', {
+      headers: getDolphinHeaders(cookie),
+    });
+
+    if (r.status === 403 || !r.ok) {
+      console.log(`[/api/models] Received HTTP ${r.status}. Triggering automated cf_clearance refresh...`);
+      const refreshed = await refreshDolphinCookie(true);
+      if (refreshed.isValid && refreshed.cookie !== cookie) {
+        cookie = refreshed.cookie;
+        r = await fetch('https://chat.dphn.ai/api/models', {
+          headers: getDolphinHeaders(cookie),
+        });
+      }
+    }
+
+    if (r.ok) {
+      const text = await r.text();
+      if (!text.includes('<!DOCTYPE html>') && !text.includes('Just a moment')) {
+        const rawData = JSON.parse(text);
+        const modelsList = Array.isArray(rawData?.data) ? rawData.data : [];
+        const sanitizedModels = modelsList.map((m: any) => ({
+          ...m,
+          label:
+            m.id === 'dolphinserver:24B'
+              ? 'SudaMode V1.0'
+              : m.id.includes('6b')
+              ? 'SudaMode Mini'
+              : (m.label || '').replace(/dolphin/gi, 'SudaMode').trim() || 'SudaMode V1.0',
+          isPrimary: m.id === 'dolphinserver:24B',
+        }));
+        return res.json({ data: sanitizedModels });
+      }
+    }
+  } catch (err: any) {
+    console.warn('Failed to fetch models from upstream:', err.message);
+  }
+
+  return res.json({
+    data: [
+      { id: "dolphinserver:24B", label: "SudaMode V1.0", isPrimary: true, vision: false },
+      { id: "dolphinserver2:6b", label: "SudaMode Mini", isPrimary: false, vision: false }
+    ],
+    authTelemetry: getDolphinAuthTelemetry(),
+  });
+});
+
+app.get(['/api/templates', '/api/dolphin/templates'], async (req, res) => {
+  try {
+    let cookie = await getValidDolphinCookie(req.headers['cookie'] as string);
+    let r = await fetch('https://chat.dphn.ai/api/templates', {
+      headers: getDolphinHeaders(cookie),
+    });
+
+    if (r.status === 403 || !r.ok) {
+      console.log(`[/api/templates] Received HTTP ${r.status}. Triggering automated cf_clearance refresh...`);
+      const refreshed = await refreshDolphinCookie(true);
+      if (refreshed.isValid && refreshed.cookie !== cookie) {
+        cookie = refreshed.cookie;
+        r = await fetch('https://chat.dphn.ai/api/templates', {
+          headers: getDolphinHeaders(cookie),
+        });
+      }
+    }
+
+    if (r.ok) {
+      const text = await r.text();
+      if (!text.includes('<!DOCTYPE html>') && !text.includes('Just a moment')) {
+        const data = JSON.parse(text);
+        return res.json(data);
+      }
+    }
+  } catch (err: any) {
+    console.warn('Failed to fetch templates from chat.dphn.ai:', err.message);
+  }
+
+  return res.json({
+    data: [
+      { name: "logical", label: "Logical" },
+      { name: "creative", label: "Creative" },
+      { name: "summary", label: "Summarize" },
+      { name: "code-beginner", label: "Code Beginner" },
+      { name: "code-advanced", label: "Code Advanced" }
+    ],
+    authTelemetry: getDolphinAuthTelemetry(),
+  });
+});
+
+// Dedicated SudaMode & Session Token Management Endpoints
+app.get(['/api/suda/auth/status', '/api/dolphin/auth/status'], (_req, res) => {
+  return res.json({
+    success: true,
+    telemetry: getDolphinAuthTelemetry(),
+  });
+});
+
+app.post(['/api/suda/auth/refresh', '/api/dolphin/auth/refresh'], async (req, res) => {
+  const force = req.body?.force !== false;
+  const result = await refreshDolphinCookie(force);
+  return res.json({
+    success: result.isValid,
+    refreshed: result,
+    telemetry: getDolphinAuthTelemetry(),
+  });
+});
+
+app.post(['/api/suda/cookie', '/api/dolphin/cookie'], (req, res) => {
+  const { cookie } = req.body || {};
+  if (!cookie) {
+    return res.status(400).json({ error: 'cookie is required' });
+  }
+  const updated = saveDolphinCookie(cookie, 'user');
+  return res.json({
+    success: true,
+    updated,
+    telemetry: getDolphinAuthTelemetry(),
+  });
+});
 
 // Health check endpoint for Auto-Verify Proxy & Monitoring
 app.all(['/health', '/api/health', '/status', '/api/status'], (_req, res) => {
@@ -702,9 +830,21 @@ async function startServer() {
     });
   }
 
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${port}`);
+  let port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+  let host = '0.0.0.0';
+
+  for (let i = 2; i < process.argv.length; i++) {
+    if (process.argv[i] === '--port' && process.argv[i + 1]) {
+      port = parseInt(process.argv[i + 1], 10);
+      i++;
+    } else if (process.argv[i] === '--host' && process.argv[i + 1]) {
+      host = process.argv[i + 1];
+      i++;
+    }
+  }
+
+  app.listen(port, host, () => {
+    console.log(`Server running on http://${host}:${port}`);
   });
 }
 

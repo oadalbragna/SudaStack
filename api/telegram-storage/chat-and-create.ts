@@ -1,7 +1,5 @@
 import type { Request, Response } from 'express';
-
-const DEFAULT_COOKIE =
-  'cf_clearance=6asKcMwgiRR4LasH9.W3XmTYg8DIzwZhsmtm3VVAxaI-1791370665-1.2.1.1-EeH3TsAAOX6t4KgTsjxiFTFhJMWPt_DUT.vMK44xwxJ6_HcIR9EL_C0zHN9NsUa8CBSv3pThrQ66gpCIg_dnA9tYQ.2lG.fi4WGRvun0zhuTt8uVqMrQf5aDxMB3ZH3m3uE.noZwt3UdPY3Q11mpALJ_Wlhu1hlipY0NiyZTfPtNnQSSsu0kuYhBn_zK.4tY1AXiy2QwWx1u485Bc22BfuqJ5.56WPmQ3enhfAurt.Q8DhwvN7lwAPIffNmCELKzW6ZWjeEvn1o2EYyr6UR4BMRxaYPoY_sQWGaTWo66zF5xLSVChGim77kCCJ36RNT2ZWsd2.BjKy4JL._b3Y0C_ALIp2efd9WBVjCcYwQHJape.yVTtv8MQKIX7iu_P5vPMFoei6mCOHDsY_T_SfdyzGAlpnm0G28gmgsF86ZBfzM';
+import { getValidDolphinCookie, getDolphinHeaders } from '../../src/server/dolphinAuthManager';
 
 export default async function handler(req: Request, res: Response) {
   // CORS
@@ -43,26 +41,14 @@ export default async function handler(req: Request, res: Response) {
     const existingFilesNames = Array.isArray(existingFiles) ? existingFiles.map((f: any) => f.name).join(', ') : '';
 
     try {
+      const activeCookie = await getValidDolphinCookie();
       const response = await fetch('https://chat.dphn.ai/api/chat', {
         method: 'POST',
         headers: {
-          'Host': 'chat.dphn.ai',
-          'Connection': 'keep-alive',
-          'sec-ch-ua-platform': '"Android"',
-          'Cache-Control': 'no-cache',
-          'User-Agent':
-            'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36',
+          ...getDolphinHeaders(activeCookie),
           'Accept': 'text/event-stream, application/json',
-          'sec-ch-ua': '"Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153"',
           'Content-Type': 'application/json',
-          'sec-ch-ua-mobile': '?1',
           'Origin': 'https://chat.dphn.ai',
-          'Sec-Fetch-Site': 'same-origin',
-          'Sec-Fetch-Mode': 'cors',
-          'Sec-Fetch-Dest': 'empty',
-          'Referer': 'https://chat.dphn.ai/',
-          'Accept-Language': 'ar-SD,ar;q=0.9,en-SD;q=0.8,en-US;q=0.7,en;q=0.6',
-          'Cookie': DEFAULT_COOKIE,
         },
         body: JSON.stringify({
           messages: [
@@ -117,7 +103,7 @@ export default async function handler(req: Request, res: Response) {
         }
       }
     } catch (err: any) {
-      console.warn('Dolphin platform creator error:', err?.message);
+      console.warn('SudaMode platform creator error:', err?.message);
     }
 
     // Zero-Token & Dynamic AST Synthesizer Engine

@@ -59,6 +59,14 @@ export default function App() {
     return localStorage.getItem('sudastack_zero_token_mode') === 'true';
   });
 
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    return localStorage.getItem('sudastack_selected_model') || 'dolphinserver:24B';
+  });
+
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(() => {
+    return localStorage.getItem('sudastack_selected_template') || 'code-beginner';
+  });
+
   // Removed auto agent
 
   // Modular Data Stores
@@ -220,8 +228,8 @@ export default function App() {
     const payload: any = {
       messages: conversation,
       prompt: conversation[conversation.length - 1]?.content || '',
-      model: 'dolphinserver:24B',
-      template: 'code-beginner',
+      model: selectedModel,
+      template: selectedTemplate,
       responseMode,
       systemPrompt: instruction,
     };
@@ -609,11 +617,15 @@ ${toolRes.stdout || toolRes.stderr || '(تم التنفيذ)'}
   const handleApplySettings = (settings: StudioSettings) => {
     setResponseMode(settings.responseMode);
     setSystemPrompt(settings.systemPrompt);
+    setSelectedModel(settings.model);
+    setSelectedTemplate(settings.template);
     localStorage.setItem('sudastack_response_mode', settings.responseMode);
     localStorage.setItem('sudastack_system_prompt', settings.systemPrompt);
+    localStorage.setItem('sudastack_selected_model', settings.model);
+    localStorage.setItem('sudastack_selected_template', settings.template);
 
     showToast(
-      isArabic ? 'تم تحديث إعدادات ونمط SudaMode بنجاح' : 'Settings updated successfully',
+      isArabic ? 'تم تحديث إعدادات النموذج، القالب، ونمط SudaMode بنجاح' : 'Settings updated successfully',
       'success'
     );
 
@@ -621,8 +633,8 @@ ${toolRes.stdout || toolRes.stderr || '(تم التنفيذ)'}
       id: `msg-settings-${Date.now()}`,
       sender: 'ai',
       text: isArabic
-        ? `⚙️ تم ضبط أسلوب الرد على النمط **(${settings.responseMode})** وتحديث الـ System Prompt للمودل ${settings.model}.`
-        : `⚙️ Updated response style (${settings.responseMode}) and System Prompt for model ${settings.model}.`,
+        ? `⚙️ تم ضبط النموذج على **(${settings.model})**، القالب على **(${settings.template})**، ونمط الرد على **(${settings.responseMode})**.`
+        : `⚙️ Updated model to (${settings.model}), template to (${settings.template}), and style to (${settings.responseMode}).`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
     updateCurrentSessionMessages([...chatMessages, notice]);
@@ -661,9 +673,21 @@ ${toolRes.stdout || toolRes.stderr || '(تم التنفيذ)'}
         sessions={sessions}
         currentSessionId={currentSessionId}
         onSelectSession={(id) => selectSession(id)}
-        onDeleteSession={deleteSession}
         onToggleDesktopSidebar={() => setIsDesktopSidebarOpen((prev) => !prev)}
         isDesktopSidebarOpen={isDesktopSidebarOpen}
+        selectedModel={selectedModel}
+        onSelectModel={(model) => {
+          setSelectedModel(model);
+          localStorage.setItem('sudastack_selected_model', model);
+          showToast(isArabic ? `تم تفعيل النموذج: ${model === 'dolphinserver:24B' ? 'SudaMode V1.0 (الأساسي)' : 'SudaMode Mini'}` : `Model switched to ${model === 'dolphinserver:24B' ? 'SudaMode V1.0' : 'SudaMode Mini'}`, 'success');
+        }}
+        selectedTemplate={selectedTemplate}
+        onSelectTemplate={(template) => {
+          setSelectedTemplate(template);
+          localStorage.setItem('sudastack_selected_template', template);
+          showToast(isArabic ? `تم اختيار القالب: ${template}` : `Template switched to ${template}`, 'success');
+        }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Optional Platform Announcement Banner */}
@@ -795,6 +819,8 @@ ${toolRes.stdout || toolRes.stderr || '(تم التنفيذ)'}
         isArabic={isArabic}
         responseMode={responseMode}
         systemPrompt={systemPrompt}
+        initialModel={selectedModel}
+        initialTemplate={selectedTemplate}
       />
 
       {/* 6. Admin Control Panel Modal */}

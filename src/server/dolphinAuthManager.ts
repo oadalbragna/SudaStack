@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -17,10 +18,13 @@ export interface DolphinAuthConfig {
   autoRefreshCount: number;
 }
 
-const AUTH_CONFIG_FILE = path.join(process.cwd(), '.dolphin_auth_config.json');
+const isVercelRuntime = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const AUTH_CONFIG_FILE = isVercelRuntime
+  ? path.join(os.tmpdir(), '.dolphin_auth_config.json')
+  : path.join(process.cwd(), '.dolphin_auth_config.json');
 
 export const INITIAL_DEFAULT_COOKIE =
-  'cf_clearance=CsJnai8Yn2HYqgKDlXpGquvjJ0fkg0871XhAA39nTv1_yqQZGzHoFfQUhkHgyPZxsOrsqT5woB3YR-HGZ0HM4B6Un6ADPCw6PCqZzptjSmBNlenrG8OjN0e2bAzJFII4rBwYFKIdL694mcff-mV0sDq25XXW090iz48k2Thh913CTDVvm4jJ87ZosOxqaXwUNXt3SlZEcLIX-nN3XAculQYlqURvQ9zzcouDL_ht2Q5BDphAxLlQoGRs81Sqbn7NgFCYeutFwiRbKbTxjZXqZguFrD5oiHJIzGdQyW1CYW-7jz5apsSHzfX3D93046fzTbxkJOFQpwgkfeed7OCl5LU8i7rE3lU77Yy4XWAoh_0x9NOc5WgwQ2Eo46PmL9LnlplMTJdWM8zgoeJ5KEnKXhOA-5gTOiiM-tjCpSlbM_IM3BY7akmOPXnMVLGmBXOPaTX5wIyXMxroI93rrcCpr1DD8GWeSZt--C4AI81orxuPZZFfMmFjdl6bRgBjth0CnmKBE8wZsb9lN8pPPSylz4Ms2Al723VuE5K-85nggGuHwqrm-54jdAeo3dFD6ptRDjMxPEHcI9CWxVPq-KnNXtuIkCgqtkVNAkKpDA-sc4PwV8pQvC9x_hTi1a1qaWPHng9sPW3xBO9XpkmdvGG9dDCMqpCIH9DPRLupO5nP3F2xjLHGXsW7eM2oNECTmPv3X0dQC_wmPIs-5hRwmH8npGahGS1E4V56vc7JMMnZ1R0QJKxbe8RoFPcbLi-dlYlvIiNg7wjJrg';
+  'cf_clearance=CrIdS7ohjGKN3JjHJO611xmVzIhvC6O0rP1crTsBzS-tpKS4wPie3m_W3DzJd_YS_eScRJCelZTSkIU1-E1mTpFiQkM8icJov3nmt7GdXVmroodHGxfKVokF8vHLMhyTBbnLe7Vl7wGohuoYbb2EAweCp_Vga-ekZvDezd9Car2sCO-OrYdellOcb8l43OxpemK_5o4lJLx7lV-EOMAxQy4RwL6_nxJQS4wkj1iue1yF_X9ZbffH3ar8K1lAGAeYjp93FxFUU9IhNUTvkUp7IadOkEza4IBEs_pvBU7jzhd5zna_DxqacaJRoP-UMI5uYUkYXxq3KJDN3iI9mkfBvVMUDCToWult4TOgRZ2iIsnUBlNGabK0ldDJVebdbIQ2mC3JJDmBcz1UqGoskGzWNNhvFKYCw-Af5fajOdTLU8BV1lNm86zgHpzwr79B0jokmGuhXfYf4tF0VP8lLSnylZBJYoUOmMmbBpS2YbTFA1f72ghvC7HHOFurZJyGeMkif52NO8y-mhDLaCIM7Sul2KuqkHcc47RdBkDZwLxnbawps0FKpCFMRbG6Q1zxtQoks3hJ_E6_0js6223xRto0mZqwHaA176rVehcluDNlZSYgWtoflMsRNzfUQxghnMkeJllRSE-FFR3HZE-BZOOl3Bso1_6BL6Or8uZoqF771AMnF4sti9BgGF36o1Pkmo1OSUgf0QK0dReyRFrKhqA8K3j_XiJdHlcmIXcSxwwsSMQrNnEaL9qQhGNBATDUATi_63CA0deROA';
 
 export const USER_AGENT_STRING =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.8059.12 Safari/537.36';
@@ -83,10 +87,15 @@ export function persistAuthConfig(): void {
     try {
       fs.writeFileSync(AUTH_CONFIG_FILE, data, { mode: 0o600, encoding: 'utf-8' });
     } catch {
-      fs.writeFileSync(AUTH_CONFIG_FILE, data, 'utf-8');
+      try {
+        fs.writeFileSync(AUTH_CONFIG_FILE, data, 'utf-8');
+      } catch {
+        const tmpPath = path.join(os.tmpdir(), '.dolphin_auth_config.json');
+        fs.writeFileSync(tmpPath, data, 'utf-8');
+      }
     }
   } catch (err) {
-    console.warn('[dolphinAuthManager] Failed to persist auth config to file:', err);
+    // In-memory state remains valid even if disk write is restricted
   }
 }
 
@@ -118,7 +127,8 @@ export function getDolphinHeaders(customCookie?: string): Record<string, string>
 export async function testCookie(candidateCookie: string): Promise<{ ok: boolean; status: number; text: string }> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 6000);
+    const timeoutMs = isVercelRuntime ? 3500 : 6000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const res = await fetch('https://chat.dphn.ai/api/templates', {
       method: 'GET',
@@ -155,7 +165,8 @@ export async function testCookie(candidateCookie: string): Promise<{ ok: boolean
 export async function fetchFreshTokensProgrammatically(): Promise<string | null> {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const endpointTimeoutMs = isVercelRuntime ? 4000 : 8000;
+    const timeout = setTimeout(() => controller.abort(), endpointTimeoutMs);
 
     // 1. Check if chat.dphn.ai root or session endpoints return any Set-Cookie
     const endpoints = [
@@ -171,9 +182,9 @@ export async function fetchFreshTokensProgrammatically(): Promise<string | null>
           headers: {
             'User-Agent': USER_AGENT_STRING,
             'Accept': 'application/json, text/html, */*',
-            'sec-ch-ua-platform': '"Android"',
-            'sec-ch-ua': '"Google Chrome";v="153", "Not_A Brand";v="8", "Chromium";v="153"',
-            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Linux"',
+            'sec-ch-ua': '"HeadlessChrome";v="155", "Not_A Brand";v="8", "Chromium";v="155"',
+            'sec-ch-ua-mobile': '?0',
           },
           signal: controller.signal,
           redirect: 'manual',
@@ -206,28 +217,30 @@ export async function fetchFreshTokensProgrammatically(): Promise<string | null>
 
     clearTimeout(timeout);
 
-    // 2. Headless browser automated clearance extraction fallback
-    try {
-      console.log('[dolphinAuthManager] Launching headless browser to refresh clearance token...');
-      await execAsync('playwright-cli open --browser=chromium https://chat.dphn.ai', { timeout: 20000 });
-      await new Promise((r) => setTimeout(r, 4500));
-      const { stdout: cookieOut } = await execAsync('playwright-cli cookie-list', { timeout: 10000 });
-      await execAsync('playwright-cli close', { timeout: 5000 });
-
-      const match = cookieOut.match(/cf_clearance=([A-Za-z0-9_-]+)/);
-      if (match && match[1]) {
-        const candidate = `cf_clearance=${match[1]}`;
-        const test = await testCookie(candidate);
-        if (test.ok) {
-          console.log('[dolphinAuthManager] Successfully extracted fresh clearance via headless browser');
-          return candidate;
-        }
-      }
-    } catch (browserErr: any) {
+    // 2. Headless browser automated clearance extraction fallback (skip on Vercel/Lambda where playwright-cli is not present)
+    if (!isVercelRuntime) {
       try {
-        await execAsync('playwright-cli close', { timeout: 3000 });
-      } catch {}
-      console.warn('[dolphinAuthManager] Headless programmatic clearance retrieval error:', browserErr.message);
+        console.log('[dolphinAuthManager] Launching headless browser to refresh clearance token...');
+        await execAsync('playwright-cli open --browser=chromium https://chat.dphn.ai', { timeout: 15000 });
+        await new Promise((r) => setTimeout(r, 4000));
+        const { stdout: cookieOut } = await execAsync('playwright-cli cookie-list', { timeout: 8000 });
+        await execAsync('playwright-cli close', { timeout: 4000 });
+
+        const match = cookieOut.match(/cf_clearance=([A-Za-z0-9_-]+)/);
+        if (match && match[1]) {
+          const candidate = `cf_clearance=${match[1]}`;
+          const test = await testCookie(candidate);
+          if (test.ok) {
+            console.log('[dolphinAuthManager] Successfully extracted fresh clearance via headless browser');
+            return candidate;
+          }
+        }
+      } catch (browserErr: any) {
+        try {
+          await execAsync('playwright-cli close', { timeout: 3000 });
+        } catch {}
+        console.warn('[dolphinAuthManager] Headless programmatic clearance retrieval error:', browserErr.message);
+      }
     }
   } catch (err) {
     console.warn('[dolphinAuthManager] Programmatic token retrieval failed:', err);

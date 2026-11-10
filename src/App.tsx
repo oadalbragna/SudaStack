@@ -232,6 +232,7 @@ export default function App() {
       template: selectedTemplate,
       responseMode,
       systemPrompt: instruction,
+      cookie: localStorage.getItem('sudastack_cf_cookie') || undefined,
     };
 
     if (attachedFiles && attachedFiles.length > 0) {

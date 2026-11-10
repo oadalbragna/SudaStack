@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/**/*.ts": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/api/models", "destination": "/api/models" },
+    { "source": "/api/templates", "destination": "/api/templates" },
+    { "source": "/api/proxy", "destination": "/api/proxy" },
+    { "source": "/api/chat", "destination": "/api/proxy-chat" },
+    { "source": "/api/suda/chat", "destination": "/api/proxy-chat" },
+    { "source": "/api/suda/models", "destination": "/api/models" },
+    { "source": "/api/suda/templates", "destination": "/api/templates" },
+    { "source": "/api/dolphin/chat", "destination": "/api/proxy-chat" },
+    { "source": "/api/dolphin/models", "destination": "/api/models" },
+    { "source": "/api/dolphin/templates", "destination": "/api/templates" },
+    { "source": "/api/dolphin/auth/status", "destination": "/api/dolphin/auth/status" },
+    { "source": "/api/suda/auth/status", "destination": "/api/dolphin/auth/status" },
+    { "source": "/api/dolphin/auth/refresh", "destination": "/api/dolphin/auth/refresh" },
+    { "source": "/api/suda/auth/refresh", "destination": "/api/dolphin/auth/refresh" },
+    { "source": "/api/dolphin/cookie", "destination": "/api/dolphin/cookie" },
+    { "source": "/api/suda/cookie", "destination": "/api/dolphin/cookie" },
+    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
+  ]
+}

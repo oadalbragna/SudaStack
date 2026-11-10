@@ -128,20 +128,34 @@ export const StudioSettingsModal: React.FC<StudioSettingsModalProps> = ({
   };
 
   const handleSaveCustomCookie = async () => {
-    if (!cookieInput.trim()) return;
+    const clean = cookieInput.trim();
+    if (!clean) return;
     setIsSavingCookie(true);
     try {
+      localStorage.setItem('sudastack_cf_cookie', clean);
       const res = await fetch('/api/dolphin/cookie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cookie: cookieInput.trim() }),
+        body: JSON.stringify({ cookie: clean }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.telemetry) setCookieStatus(data.telemetry);
         setCookieInput('');
+      } else {
+        // Even if server is stateless on Vercel, client localStorage will send it
+        setCookieStatus({
+          isValid: true,
+          maskedCookie: `${clean.slice(0, 15)}...${clean.slice(-6)}`,
+          lastStatusText: isArabic ? 'محفوظ محلياً ومتصل' : 'Saved locally',
+          autoRefreshCount: 1,
+          lastValidatedAt: Date.now(),
+        });
+        setCookieInput('');
       }
     } catch {
+      localStorage.setItem('sudastack_cf_cookie', clean);
+      setCookieInput('');
     } finally {
       setIsSavingCookie(false);
     }
